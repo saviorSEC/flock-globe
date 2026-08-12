@@ -223,6 +223,12 @@
   const detailType = document.getElementById('detailType');
   const detailBody = document.getElementById('detailBody');
 
+  const hav = (lat1, lon1, lat2, lon2) => {
+    const R = 6371, dLat = (lat2 - lat1) * Math.PI / 180, dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  };
+
   const nearestCluster = (lat, lon) => {
     let best = null, bd = 1e9;
     PUBLIC_NET.cities.forEach(c => {
@@ -234,27 +240,64 @@
 
   const openDetail = (lat, lon) => {
     const cl = nearestCluster(lat, lon);
+    const dist = cl ? hav(lat, lon, cl.lat, cl.lon) : null;
+    const osm = `https://www.openstreetmap.org/?mlat=${lat.toFixed(5)}&mlon=${lon.toFixed(5)}#map=16/${lat.toFixed(5)}/${lon.toFixed(5)}`;
+    const gmaps = `https://www.google.com/maps?q=${lat.toFixed(5)},${lon.toFixed(5)}`;
     detailTitle.textContent = 'Flock camera';
     detailType.textContent = 'Camera node · public data';
     detailBody.innerHTML = `
       <div class="kv"><span class="k">Coordinates</span><span class="v">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></div>
       <div class="kv"><span class="k">Brand</span><span class="v">Flock Safety</span></div>
       ${cl ? `<div class="kv"><span class="k">State</span><span class="v">${cl.state}</span></div>
-      <div class="kv"><span class="k">Cluster</span><span class="v">${cl.count.toLocaleString()} cameras near ${cl.lat.toFixed(3)}, ${cl.lon.toFixed(3)}</span></div>` : ''}
+      <div class="kv"><span class="k">Area density</span><span class="v">${cl.count.toLocaleString()} cameras within ~25km</span></div>
+      <div class="kv"><span class="k">Cluster center</span><span class="v">${cl.lat.toFixed(4)}, ${cl.lon.toFixed(4)} (${dist.toFixed(1)} km away)</span></div>` : ''}
+      <div class="p-sec">Location</div>
+      <div class="p-note"><a href="${osm}" target="_blank" style="color:var(--accent2)">Open in OpenStreetMap ↗</a><br/><a href="${gmaps}" target="_blank" style="color:var(--accent2)">Open in Google Maps ↗</a><br/><button class="btn" id="copyCoords" style="margin-top:8px">Copy coordinates</button></div>
       <div class="p-sec">Leads into</div>
       <div class="p-note">Public network hub → <b style="color:var(--accent2)">${cl ? cl.state : 'unknown state'}</b> state cluster (${cl ? cl.count.toLocaleString() : '?'} cameras aggregated).</div>
       <div class="p-sec">Source</div>
       <div class="p-note">Crowdsourced location from DeFlock / OpenStreetMap (ODbL). No per-camera identifiers, photos or video in the public dataset.</div>
     `;
+    const cp = document.getElementById('copyCoords');
+    if (cp) cp.onclick = () => {
+      try { navigator.clipboard.writeText(`${lat.toFixed(5)}, ${lon.toFixed(5)}`); cp.textContent = 'Copied ✓'; } catch (e) { cp.textContent = 'Copy failed'; }
+    };
     detailEl.classList.add('open');
   };
   document.getElementById('detailClose').onclick = () => detailEl.classList.remove('open');
 
-  globe.onGlobeClick(({ lat, lng }) => {
-    const hit = nearest(lat, lng, 0.5);
+  // DOM-level click capture: merged point geometry eats globe.gl's built-in
+  // picking, so we raycast manually from the click position to the globe surface.
+  const container = document.getElementById('globe');
+  let downPos = null;
+  container.addEventListener('pointerdown', e => { downPos = { x: e.clientX, y: e.clientY }; });
+  container.addEventListener('click', e => {
+    if (downPos && Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) > 6) return; // drag, not a click
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const w = globe.width(), h = globe.height();
+    if (!w || !h) return;
+    const ndc = new THREE.Vector2((x / w) * 2 - 1, -(y / h) * 2 + 1);
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(ndc, globe.camera());
+    // all globe spheres are origin-centered → any sphere hit gives the right direction
+    const allHits = ray.intersectObjects(globe.scene().children, true);
+    let sphereHit = null;
+    for (const hit of allHits) {
+      if (hit.object.isMesh && hit.object.geometry && hit.object.geometry.type === 'SphereGeometry') { sphereHit = hit; break; }
+    }
+    if (!sphereHit) { detailEl.classList.remove('open'); return; }
+    const p = sphereHit.point;
+    const r = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+    const lat = 90 - Math.acos(Math.max(-1, Math.min(1, p.y / r))) * 180 / Math.PI;
+    const theta = Math.atan2(p.z, p.x);
+    const lng = 90 - theta * 180 / Math.PI - (theta < -Math.PI / 2 ? 360 : 0);
+    const hit = nearest(lat, lng, 0.6);
     if (hit) {
       globe.pointOfView({ lat: hit[0], lng: hit[1], altitude: 0.5 }, 800);
       openDetail(hit[0], hit[1]);
+    } else {
+      detailEl.classList.remove('open'); // clicked empty space → close
     }
   });
 
