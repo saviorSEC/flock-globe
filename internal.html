@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>FLOCK NETWORK // PUBLIC MAP — NETWORK LAYER</title>
+<title>FLOCK NETWORK // INTERNAL — INFRASTRUCTURE TOPOLOGY</title>
 <style>
   :root {
     --bg: #04060c;
@@ -33,22 +33,23 @@
   .hud .title { font-size: 15px; font-weight: 700; letter-spacing: 2px; color: #eaf4ee; }
   .hud .sub { font-size: 10px; letter-spacing: 3px; color: var(--dim); margin-top: 4px; text-transform: uppercase; }
   .hud .badge { display: inline-block; margin-top: 10px; padding: 3px 8px; font-size: 9px;
-    letter-spacing: 2px; border: 1px solid var(--accent2); color: var(--accent2); border-radius: 2px; }
+    letter-spacing: 2px; border: 1px solid var(--warn); color: var(--warn); border-radius: 2px; }
 
   .stats { position: fixed; top: 18px; right: 18px; z-index: 10; text-align: right; pointer-events: none; }
   .stats .num { font-size: 26px; font-weight: 700; color: var(--accent); }
   .stats .lbl { font-size: 9px; letter-spacing: 2px; color: var(--dim); text-transform: uppercase; }
   .stats .row { margin-top: 10px; }
 
-  .list { position: fixed; bottom: 18px; left: 18px; z-index: 10; width: 280px; max-height: 32vh;
+  .legend { position: fixed; bottom: 18px; left: 18px; z-index: 10; width: 280px; max-height: 34vh;
     background: var(--panel); border: 1px solid var(--line); border-radius: 6px; display: flex; flex-direction: column;
     backdrop-filter: blur(8px); }
-  .list .head { padding: 9px 14px; font-size: 10px; letter-spacing: 2px; color: var(--accent);
+  .legend .head { padding: 9px 14px; font-size: 10px; letter-spacing: 2px; color: var(--accent);
     border-bottom: 1px solid var(--line); text-transform: uppercase; }
-  .list .rows { overflow-y: auto; padding: 6px; }
-  .list .rows::-webkit-scrollbar { width: 4px; }
-  .list .rows::-webkit-scrollbar-thumb { background: var(--line); }
+  .legend .rows { overflow-y: auto; padding: 6px; }
+  .legend .rows::-webkit-scrollbar { width: 4px; }
+  .legend .rows::-webkit-scrollbar-thumb { background: var(--line); }
   .row-item { display: flex; align-items: center; gap: 8px; padding: 3px 8px; font-size: 10.5px; }
+  .row-item .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
   .row-item .name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row-item .cnt { color: var(--dim); }
 
@@ -58,16 +59,13 @@
   .tooltip .a { color: var(--accent2); margin-top: 3px; font-size: 10px; letter-spacing: 1px; }
   .tooltip .c { color: var(--dim); margin-top: 3px; font-size: 10px; }
 
-  .attrib { position: fixed; bottom: 14px; right: 18px; z-index: 5; font-size: 9px; color: var(--dim);
-    letter-spacing: 0.5px; text-align: right; pointer-events: none; max-width: 40vw; line-height: 1.5; }
-
   /* detail panel */
-  .panel-detail { position: fixed; top: 70px; right: 18px; bottom: 60px; width: 340px; z-index: 25;
+  .panel-detail { position: fixed; top: 70px; right: 18px; bottom: 60px; width: 360px; z-index: 25;
     background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
     backdrop-filter: blur(8px); display: none; flex-direction: column; }
   .panel-detail.open { display: flex; }
   .panel-detail .p-head { padding: 12px 14px; border-bottom: 1px solid var(--line); }
-  .panel-detail .p-title { font-size: 12px; font-weight: 700; color: #eaf4ee; letter-spacing: 0.5px; }
+  .panel-detail .p-title { font-size: 12px; font-weight: 700; color: #eaf4ee; letter-spacing: 0.5px; word-break: break-word; }
   .panel-detail .p-type { font-size: 9px; letter-spacing: 2px; color: var(--accent2); margin-top: 4px; text-transform: uppercase; }
   .panel-detail .p-close { position: absolute; top: 10px; right: 12px; background: none; border: 1px solid var(--line);
     color: var(--dim); width: 24px; height: 24px; border-radius: 4px; cursor: pointer; font-size: 13px; line-height: 1; }
@@ -80,12 +78,15 @@
   .kv .v { color: var(--text); text-align: right; word-break: break-word; }
   .p-sec { margin-top: 14px; font-size: 9px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; }
   .p-note { margin-top: 10px; font-size: 10px; color: var(--dim); line-height: 1.5; }
-  .p-list { margin-top: 6px; max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 4px; padding: 4px; }
+  .p-list { margin-top: 6px; max-height: 200px; overflow-y: auto; border: 1px solid var(--line); border-radius: 4px; padding: 4px; }
   .p-list::-webkit-scrollbar { width: 4px; }
   .p-list::-webkit-scrollbar-thumb { background: var(--line); }
-  .p-item { padding: 4px 6px; font-size: 10.5px; border-bottom: 1px solid rgba(0,255,170,0.05); cursor: pointer; }
+  .p-item { padding: 4px 6px; font-size: 10px; border-bottom: 1px solid rgba(0,255,170,0.05); cursor: pointer; word-break: break-all; }
   .p-item:hover { background: rgba(0,255,170,0.06); }
   .p-item .coords { color: var(--dim); font-size: 9.5px; margin-top: 1px; }
+
+  .attrib { position: fixed; bottom: 14px; right: 18px; z-index: 5; font-size: 9px; color: var(--dim);
+    letter-spacing: 0.5px; text-align: right; pointer-events: none; max-width: 40vw; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -94,28 +95,28 @@
 
 <div class="tabs">
   <a href="index.html">Globe</a>
-  <a href="network.html" class="active">Network layer</a>
-  <a href="internal.html">Internal network</a>
+  <a href="network.html">Network layer</a>
+  <a href="internal.html" class="active">Internal network</a>
 </div>
 
 <div class="hud">
-  <div class="title">NETWORK LAYER // PUBLIC</div>
-  <div class="sub">State hubs → city clusters — derived from crowdsourced data</div>
-  <div class="badge">PUBLIC DATA · DERIVED · NOT OFFICIAL</div>
+  <div class="title">INTERNAL NETWORK // TOPOLOGY</div>
+  <div class="sub">Flock Safety infrastructure — passive OSINT (DNS + CT + frontend)</div>
+  <div class="badge">PASSIVE OSINT · RFC1918 NOT ROUTABLE</div>
 </div>
 
 <div class="stats">
-  <div class="row"><div class="num" id="statStates">0</div><div class="lbl">States</div></div>
-  <div class="row"><div class="num" id="statCams">0</div><div class="lbl">Cameras</div></div>
-  <div class="row"><div class="num" id="statCities">0</div><div class="lbl">City hubs</div></div>
+  <div class="row"><div class="num" id="statZones">0</div><div class="lbl">Zones</div></div>
+  <div class="row"><div class="num" id="statSvc">0</div><div class="lbl">Services</div></div>
+  <div class="row"><div class="num" id="statLinks">0</div><div class="lbl">Links</div></div>
 </div>
 
-<div class="list">
-  <div class="head">States — by camera count</div>
-  <div class="rows" id="stateList"></div>
+<div class="legend">
+  <div class="head">Zones — by service count</div>
+  <div class="rows" id="zoneList"></div>
 </div>
 
-<div class="attrib">Derived from © <a href="https://www.openstreetmap.org/copyright" target="_blank" style="color:var(--dim)">OpenStreetMap</a> contributors &amp; <a href="https://deflock.org" target="_blank" style="color:var(--dim)">DeFlock</a> (dontgetflocked.com) — ODbL.<br/>State/city aggregation of 106,308 crowdsourced Flock camera locations. Not affiliated with Flock Safety.</div>
+<div class="attrib">Recon data: crt.sh certificate transparency, DNS resolution (dig), frontend bundle analysis. Internal RFC1918 addresses shown are not routable from the internet. Visualization for research only.</div>
 
 <div class="tooltip" id="tip"></div>
 
@@ -130,33 +131,37 @@
 
 <script src="https://unpkg.com/three@0.150.0/build/three.min.js"></script>
 <script src="https://unpkg.com/3d-force-graph@1.73.0/dist/3d-force-graph.min.js"></script>
-<script src="public_network.js"></script>
+<script src="internal_network.js"></script>
 <script>
 (() => {
-  const { states, cities } = PUBLIC_NET;
-  const totalCams = states.reduce((a, s) => a + s.count, 0);
-  document.getElementById('statStates').textContent = states.length;
-  document.getElementById('statCams').textContent = totalCams.toLocaleString();
-  document.getElementById('statCities').textContent = cities.length;
+  const { zones, services, ipPools, links } = FLOCK_INT;
+  const zoneById = Object.fromEntries(zones.map(z => [z.id, z]));
+  const zoneColor = Object.fromEntries(zones.map(z => [z.id, z.color]));
+  const poolById = Object.fromEntries(ipPools.map(p => [p.id, p]));
+  const svcById = Object.fromEntries(services.map(s => [s.id, s]));
 
-  // palette by state
-  const stateColor = {};
-  states.forEach((s, i) => {
-    const hue = (i * (360 / Math.max(states.length, 1)) + 120) % 360;
-    stateColor[s.name] = `hsl(${hue.toFixed(0)}, 90%, 58%)`;
-  });
+  // count services per zone
+  const zoneCounts = {};
+  services.forEach(s => zoneCounts[s.zone] = (zoneCounts[s.zone] || 0) + 1);
 
   const nodes = [];
-  states.forEach(s => nodes.push({ id: 'st:' + s.name, type: 'state', name: s.name, count: s.count, color: stateColor[s.name] }));
-  cities.forEach(c => nodes.push({ id: 'ct:' + c.lat + ',' + c.lon, type: 'city', name: 'Cluster ' + c.lat.toFixed(2) + ', ' + c.lon.toFixed(2), count: c.count, state: c.state, color: stateColor[c.state], lat: c.lat, lon: c.lon }));
-  const links = cities.map(c => ({ source: 'st:' + c.state, target: 'ct:' + c.lat + ',' + c.lon }));
+  zones.forEach(z => nodes.push({ id: z.id, type: 'zone', name: z.name, zone: z.id, color: z.color, note: z.note, count: zoneCounts[z.id] || 0 }));
+  services.forEach(s => nodes.push({ id: s.id, type: 'service', name: s.name, zone: s.zone, color: zoneColor[s.zone], ...s }));
+  ipPools.forEach(p => nodes.push({ id: p.id, type: 'pool', name: p.name, zone: 'z-int', color: zoneColor['z-int'], ...p }));
+
+  const graphLinks = links.map(([s, t]) => ({ source: s, target: t }));
+
+  document.getElementById('statZones').textContent = zones.length;
+  document.getElementById('statSvc').textContent = services.length + ipPools.length;
+  document.getElementById('statLinks').textContent = graphLinks.length;
 
   // legend
-  const listEl = document.getElementById('stateList');
-  states.slice().sort((a, b) => b.count - a.count).forEach(s => {
+  const listEl = document.getElementById('zoneList');
+  zones.slice().sort((a, b) => (zoneCounts[b.id] || 0) - (zoneCounts[a.id] || 0)).forEach(z => {
     const el = document.createElement('div');
     el.className = 'row-item';
-    el.innerHTML = `<span class="name">${s.name}</span><span class="cnt">${s.count.toLocaleString()}</span>`;
+    el.innerHTML = `<span class="dot" style="background:${z.color}"></span>
+      <span class="name">${z.name}</span><span class="cnt">${zoneCounts[z.id] || 0}</span>`;
     listEl.appendChild(el);
   });
 
@@ -183,35 +188,34 @@
   };
 
   const Graph = ForceGraph3D()(document.getElementById('graph'))
-    .graphData({ nodes, links })
+    .graphData({ nodes, links: graphLinks })
     .nodeThreeObject(node => {
-      if (node.type === 'state') {
+      if (node.type === 'zone') {
         const group = new THREE.Group();
-        const r = 5 + Math.sqrt(node.count) * 0.9;
+        const r = 7 + Math.sqrt(node.count || 1) * 1.2;
         const sphere = new THREE.Mesh(
           new THREE.SphereGeometry(r, 24, 24),
-          new THREE.MeshStandardMaterial({ color: node.color, emissive: node.color, emissiveIntensity: 0.4, metalness: 0.4, roughness: 0.3 })
+          new THREE.MeshStandardMaterial({ color: node.color, emissive: node.color, emissiveIntensity: 0.45, metalness: 0.4, roughness: 0.3 })
         );
         group.add(sphere);
-        const lbl = makeSprite(node.name.toUpperCase(), '#eaf4ee', r * 3.2);
-        lbl.position.y = r + 6;
+        const lbl = makeSprite(node.name, '#eaf4ee', r * 3.4);
+        lbl.position.y = r + 7;
         group.add(lbl);
         return group;
       }
+      const r = node.type === 'pool' ? 2.2 : 1.7;
       return new THREE.Mesh(
-        new THREE.SphereGeometry(1.6, 10, 10),
+        new THREE.SphereGeometry(r, 10, 10),
         new THREE.MeshStandardMaterial({ color: node.color, emissive: node.color, emissiveIntensity: 0.6 })
       );
     })
-    .nodeVal(node => node.type === 'state' ? 8 + Math.sqrt(node.count) * 1.4 : 1.4)
+    .nodeVal(node => node.type === 'zone' ? 10 + Math.sqrt(node.count || 1) * 1.6 : 2)
     .linkColor(() => 'rgba(0, 255, 170, 0.13)')
     .linkWidth(0.5)
     .linkDirectionalParticles(1)
     .linkDirectionalParticleWidth(1.6)
     .linkDirectionalParticleSpeed(0.005)
     .linkDirectionalParticleColor(() => 'rgba(0, 255, 170, 0.9)')
-    .dagMode('td')
-    .dagLevelDistance(120)
     .warmupTicks(150)
     .cooldownTicks(350)
     .backgroundColor('rgba(0,0,0,0)');
@@ -220,85 +224,80 @@
   Graph.scene().add(new THREE.DirectionalLight(0xffffff, 0.9));
   Graph.scene().add(new THREE.PointLight(0x00ffaa, 0.4, 0, 0));
 
-  Graph.cameraPosition({ x: 0, y: 140, z: 520 }, { x: 0, y: -60, z: 0 }, 0);
-  setTimeout(() => { try { Graph.zoomToFit(900, 80); } catch (e) {} }, 2500);
+  Graph.cameraPosition({ x: 0, y: 100, z: 340 }, { x: 0, y: 0, z: 0 }, 0);
   Graph.controls().autoRotate = true;
-  Graph.controls().autoRotateSpeed = 0.7;
+  Graph.controls().autoRotateSpeed = 0.6;
 
   const tip = document.getElementById('tip');
   Graph.onNodeHover(node => {
     if (node) {
       tip.style.display = 'block';
-      if (node.type === 'state') {
-        tip.innerHTML = `<div class="t">${node.name}</div><div class="a">STATE HUB</div><div class="c">${node.count.toLocaleString()} cameras</div>`;
-      } else {
-        tip.innerHTML = `<div class="t">${node.lat.toFixed(3)}, ${node.lon.toFixed(3)}</div><div class="a">→ ${node.state}</div><div class="c">${node.count.toLocaleString()} cameras</div>`;
-      }
+      if (node.type === 'zone') tip.innerHTML = `<div class="t">${node.name}</div><div class="a">ZONE HUB</div><div class="c">${node.count} services</div>`;
+      else tip.innerHTML = `<div class="t">${node.name}</div><div class="a">${node.role || node.type.toUpperCase()}</div><div class="c">${zoneById[node.zone] ? zoneById[node.zone].name : ''}</div>`;
     } else tip.style.display = 'none';
   });
+
   // ---- detail panel ----
   const detailEl = document.getElementById('detail');
   const detailTitle = document.getElementById('detailTitle');
   const detailType = document.getElementById('detailType');
   const detailBody = document.getElementById('detailBody');
 
-  const clustersByState = {};
-  cities.forEach(c => { (clustersByState[c.state] = clustersByState[c.state] || []).push(c); });
+  const esc = s => String(s).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const kv = (k, v) => v !== undefined && v !== null && v !== '' ? `<div class="kv"><span class="k">${k}</span><span class="v">${esc(v)}</span></div>` : '';
+  const listBlock = (title, arr) => arr && arr.length ? `<div class="p-sec">${title}</div><div class="p-list">${arr.map(x => `<div class="p-item">${esc(x)}</div>`).join('')}</div>` : '';
 
   const openDetail = node => {
     detailTitle.textContent = node.name;
     detailBody.innerHTML = '';
-    if (node.type === 'state') {
-      detailType.textContent = 'State hub';
-      const cls = (clustersByState[node.name] || []).slice().sort((a, b) => b.count - a.count);
-      detailBody.innerHTML = `
-        <div class="kv"><span class="k">Cameras</span><span class="v">${node.count.toLocaleString()}</span></div>
-        <div class="kv"><span class="k">City hubs</span><span class="v">${cls.length}</span></div>
-        <div class="p-sec">What leads into it (top city hubs)</div>
-        <div class="p-list">${cls.slice(0, 50).map(c => `<div class="p-item" data-cluster="${c.lat},${c.lon}">${c.lat.toFixed(3)}, ${c.lon.toFixed(3)}<div class="coords">${c.count.toLocaleString()} cameras</div></div>`).join('')}</div>
-        <div class="p-sec">Imagery</div>
-        <div class="p-note">No photos or video in the public dataset.</div>
-      `;
+    if (node.type === 'zone') {
+      detailType.textContent = 'Zone hub';
+      const members = services.filter(s => s.zone === node.id);
+      detailBody.innerHTML = kv('Services', members.length) + kv('Note', node.note) +
+        `<div class="p-sec">Services in zone</div><div class="p-list">${members.map(s => `<div class="p-item" data-id="${s.id}">${s.name}<div class="coords">${s.role || ''}</div></div>`).join('')}</div>`;
       detailBody.querySelectorAll('.p-item').forEach(el => {
-        el.onclick = () => {
-          const [clat, clon] = el.dataset.cluster.split(',').map(Number);
-          const c = cities.find(x => Math.abs(x.lat - clat) < 1e-6 && Math.abs(x.lon - clon) < 1e-6);
-          if (c) openDetail({ id: 'ct:' + c.lat + ',' + c.lon, type: 'city', name: 'Cluster ' + c.lat.toFixed(2) + ', ' + c.lon.toFixed(2), count: c.count, state: c.state, color: stateColor[c.state], lat: c.lat, lon: c.lon, members: c.members });
-        };
+        el.onclick = () => openDetail(nodes.find(n => n.id === el.dataset.id));
       });
     } else {
-      detailType.textContent = 'City cluster';
-      detailBody.innerHTML = `
-        <div class="kv"><span class="k">Centroid</span><span class="v">${node.lat.toFixed(5)}, ${node.lon.toFixed(5)}</span></div>
-        <div class="kv"><span class="k">Cameras</span><span class="v">${node.count.toLocaleString()}</span></div>
-        <div class="kv"><span class="k">State</span><span class="v">${node.state}</span></div>
-        <div class="p-sec">Leads into</div>
-        <div class="p-note">Aggregated into state hub → <b style="color:var(--accent2)">${node.state}</b> (${(states.find(s => s.name === node.state) || {}).count || '?'} cameras).</div>
-        <div class="p-sec">Member sample (${(node.members || []).length} of ${node.count})</div>
-        <div class="p-list">${(node.members || []).map(m => `<div class="p-item">${m[0].toFixed(4)}, ${m[1].toFixed(4)}<div class="coords">member camera</div></div>`).join('')}</div>
-        <div class="p-sec">Imagery</div>
-        <div class="p-note">No photos or video in the public dataset.</div>
-      `;
+      detailType.textContent = node.type === 'pool' ? 'IP pool' : 'Service node';
+      const zoneName = zoneById[node.zone] ? zoneById[node.zone].name : '';
+      detailBody.innerHTML =
+        kv('Role', node.role) +
+        kv('Zone', zoneName) +
+        (node.dns ? `<div class="p-sec">DNS</div><div class="p-list">${node.dns.map(d => `<div class="p-item">${esc(d)}</div>`).join('')}</div>` : '') +
+        (node.ips ? `<div class="p-sec">Addresses</div><div class="p-list">${node.ips.map(d => `<div class="p-item">${esc(d)}</div>`).join('')}</div>` : '') +
+        listBlock('Certificates', node.cert ? [node.cert] : null) +
+        listBlock('Keys / tokens', node.keys) +
+        listBlock('API endpoints', node.endpoints) +
+        kv('Note', node.note) +
+        `<div class="p-sec">Leads into</div><div class="p-note">Part of zone → <b style="color:var(--accent2)">${zoneName}</b>.</div>`;
     }
     detailEl.classList.add('open');
   };
   document.getElementById('detailClose').onclick = () => detailEl.classList.remove('open');
 
   Graph.onNodeClick(node => {
-    Graph.cameraPosition({ x: node.x * 1.5, y: node.y * 1.5 + 60, z: node.z * 1.5 }, node, 900);
+    Graph.cameraPosition({ x: node.x * 1.5, y: node.y * 1.5 + 70, z: node.z * 1.5 }, node, 900);
     openDetail(node);
   });
 
-  // deep link: ?focus=st:StateName
+  // deep link: ?focus=nodeId
   const qp = new URLSearchParams(location.search);
   const foc = qp.get('focus');
   if (foc) {
     setTimeout(() => {
       const n = nodes.find(x => x.id === foc);
-      if (n) { Graph.cameraPosition({ x: n.x * 1.5, y: n.y * 1.5 + 60, z: n.z * 1.5 }, n, 800); openDetail(n); }
+      if (n) { Graph.cameraPosition({ x: n.x * 1.5, y: n.y * 1.5 + 70, z: n.z * 1.5 }, n, 800); openDetail(n); }
     }, 3000);
   }
 
+  setTimeout(() => {
+    try {
+      const g = Graph.graphData();
+      const n0 = g.nodes[0];
+      document.title = 'DBG ' + JSON.stringify({nodes: g.nodes.length, links: g.links.length, x: String(n0.x), y: String(n0.y), z: String(n0.z)});
+    } catch (e) { document.title = 'DBG ERR ' + e.message; }
+  }, 6000);
   window.addEventListener('resize', () => {
     Graph.width(window.innerWidth).height(window.innerHeight);
   });
