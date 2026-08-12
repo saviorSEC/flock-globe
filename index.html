@@ -22,6 +22,13 @@
   #globe { position: fixed; inset: 0; }
   canvas { display: block; }
 
+  .tabs { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 30;
+    display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px; }
+  .tabs a { color: var(--dim); text-decoration: none; font-size: 10px; letter-spacing: 2px;
+    text-transform: uppercase; padding: 7px 16px; border-radius: 4px; }
+  .tabs a.active { color: var(--accent); background: rgba(0,255,170,0.08); border: 1px solid var(--line); }
+  .tabs a:hover { color: var(--text); }
+
   .hud { position: fixed; top: 18px; left: 18px; z-index: 10; pointer-events: none; }
   .hud .title { font-size: 15px; font-weight: 700; letter-spacing: 2px; color: #eaf4ee; }
   .hud .sub { font-size: 10px; letter-spacing: 3px; color: var(--dim); margin-top: 4px; text-transform: uppercase; }
@@ -55,6 +62,11 @@
 <body>
 
 <div id="globe"></div>
+
+<div class="tabs">
+  <a href="index.html" class="active">Globe</a>
+  <a href="network.html">Network layer</a>
+</div>
 
 <div class="hud">
   <div class="title">FLOCK NETWORK // PUBLIC MAP</div>

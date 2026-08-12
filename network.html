@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FLOCK NETWORK // PUBLIC MAP — NETWORK LAYER</title>
+<style>
+  :root {
+    --bg: #04060c;
+    --panel: rgba(10, 16, 28, 0.82);
+    --line: rgba(0, 255, 170, 0.18);
+    --accent: #00ffaa;
+    --accent2: #00d0ff;
+    --warn: #ffb020;
+    --text: #c8d6e0;
+    --dim: #5b6b78;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: var(--bg); color: var(--text);
+    font-family: "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace;
+    overflow: hidden; }
+  #graph { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  .tabs { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 30;
+    display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px; }
+  .tabs a { color: var(--dim); text-decoration: none; font-size: 10px; letter-spacing: 2px;
+    text-transform: uppercase; padding: 7px 16px; border-radius: 4px; }
+  .tabs a.active { color: var(--accent); background: rgba(0,255,170,0.08); border: 1px solid var(--line); }
+  .tabs a:hover { color: var(--text); }
+
+  .hud { position: fixed; top: 18px; left: 18px; z-index: 10; pointer-events: none; }
+  .hud .title { font-size: 15px; font-weight: 700; letter-spacing: 2px; color: #eaf4ee; }
+  .hud .sub { font-size: 10px; letter-spacing: 3px; color: var(--dim); margin-top: 4px; text-transform: uppercase; }
+  .hud .badge { display: inline-block; margin-top: 10px; padding: 3px 8px; font-size: 9px;
+    letter-spacing: 2px; border: 1px solid var(--accent2); color: var(--accent2); border-radius: 2px; }
+
+  .stats { position: fixed; top: 18px; right: 18px; z-index: 10; text-align: right; pointer-events: none; }
+  .stats .num { font-size: 26px; font-weight: 700; color: var(--accent); }
+  .stats .lbl { font-size: 9px; letter-spacing: 2px; color: var(--dim); text-transform: uppercase; }
+  .stats .row { margin-top: 10px; }
+
+  .list { position: fixed; bottom: 18px; left: 18px; z-index: 10; width: 280px; max-height: 32vh;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 6px; display: flex; flex-direction: column;
+    backdrop-filter: blur(8px); }
+  .list .head { padding: 9px 14px; font-size: 10px; letter-spacing: 2px; color: var(--accent);
+    border-bottom: 1px solid var(--line); text-transform: uppercase; }
+  .list .rows { overflow-y: auto; padding: 6px; }
+  .list .rows::-webkit-scrollbar { width: 4px; }
+  .list .rows::-webkit-scrollbar-thumb { background: var(--line); }
+  .row-item { display: flex; align-items: center; gap: 8px; padding: 3px 8px; font-size: 10.5px; }
+  .row-item .name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row-item .cnt { color: var(--dim); }
+
+  .tooltip { position: fixed; z-index: 40; background: rgba(6, 12, 20, 0.95); border: 1px solid var(--line);
+    padding: 8px 12px; border-radius: 4px; font-size: 11px; pointer-events: none; display: none; max-width: 320px; }
+  .tooltip .t { color: #eaf4ee; font-weight: 600; }
+  .tooltip .a { color: var(--accent2); margin-top: 3px; font-size: 10px; letter-spacing: 1px; }
+  .tooltip .c { color: var(--dim); margin-top: 3px; font-size: 10px; }
+
+  .attrib { position: fixed; bottom: 14px; right: 18px; z-index: 5; font-size: 9px; color: var(--dim);
+    letter-spacing: 0.5px; text-align: right; pointer-events: none; max-width: 40vw; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div id="graph"></div>
+
+<div class="tabs">
+  <a href="index.html">Globe</a>
+  <a href="network.html" class="active">Network layer</a>
+</div>
+
+<div class="hud">
+  <div class="title">NETWORK LAYER // PUBLIC</div>
+  <div class="sub">State hubs → city clusters — derived from crowdsourced data</div>
+  <div class="badge">PUBLIC DATA · DERIVED · NOT OFFICIAL</div>
+</div>
+
+<div class="stats">
+  <div class="row"><div class="num" id="statStates">0</div><div class="lbl">States</div></div>
+  <div class="row"><div class="num" id="statCams">0</div><div class="lbl">Cameras</div></div>
+  <div class="row"><div class="num" id="statCities">0</div><div class="lbl">City hubs</div></div>
+</div>
+
+<div class="list">
+  <div class="head">States — by camera count</div>
+  <div class="rows" id="stateList"></div>
+</div>
+
+<div class="attrib">Derived from © <a href="https://www.openstreetmap.org/copyright" target="_blank" style="color:var(--dim)">OpenStreetMap</a> contributors &amp; <a href="https://deflock.org" target="_blank" style="color:var(--dim)">DeFlock</a> (dontgetflocked.com) — ODbL.<br/>State/city aggregation of 106,308 crowdsourced Flock camera locations. Not affiliated with Flock Safety.</div>
+
+<div class="tooltip" id="tip"></div>
+
+<script src="https://unpkg.com/three@0.150.0/build/three.min.js"></script>
+<script src="https://unpkg.com/3d-force-graph@1.73.0/dist/3d-force-graph.min.js"></script>
+<script src="public_network.js"></script>
+<script>
+(() => {
+  const { states, cities } = PUBLIC_NET;
+  const totalCams = states.reduce((a, s) => a + s.count, 0);
+  document.getElementById('statStates').textContent = states.length;
+  document.getElementById('statCams').textContent = totalCams.toLocaleString();
+  document.getElementById('statCities').textContent = cities.length;
+
+  // palette by state
+  const stateColor = {};
+  states.forEach((s, i) => {
+    const hue = (i * (360 / Math.max(states.length, 1)) + 120) % 360;
+    stateColor[s.name] = `hsl(${hue.toFixed(0)}, 90%, 58%)`;
+  });
+
+  const nodes = [];
+  states.forEach(s => nodes.push({ id: 'st:' + s.name, type: 'state', name: s.name, count: s.count, color: stateColor[s.name] }));
+  cities.forEach(c => nodes.push({ id: 'ct:' + c.lat + ',' + c.lon, type: 'city', name: 'Cluster ' + c.lat.toFixed(2) + ', ' + c.lon.toFixed(2), count: c.count, state: c.state, color: stateColor[c.state], lat: c.lat, lon: c.lon }));
+  const links = cities.map(c => ({ source: 'st:' + c.state, target: 'ct:' + c.lat + ',' + c.lon }));
+
+  // legend
+  const listEl = document.getElementById('stateList');
+  states.slice().sort((a, b) => b.count - a.count).forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'row-item';
+    el.innerHTML = `<span class="name">${s.name}</span><span class="cnt">${s.count.toLocaleString()}</span>`;
+    listEl.appendChild(el);
+  });
+
+  const makeSprite = (text, color, size) => {
+    const canvas = document.createElement('canvas');
+    let ctx = canvas.getContext('2d');
+    canvas.width = 1024; canvas.height = 128;
+    ctx.font = 'bold 52px monospace';
+    ctx.textBaseline = 'middle';
+    const w = ctx.measureText(text).width + 60;
+    canvas.width = Math.max(128, w); canvas.height = 80;
+    ctx = canvas.getContext('2d');
+    ctx.font = 'bold 48px monospace';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = color;
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.lineWidth = 8;
+    ctx.strokeText(text, 30, 40);
+    ctx.fillText(text, 30, 40);
+    const tex = new THREE.CanvasTexture(canvas);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+    sp.scale.set(size, size * 0.12, 1);
+    return sp;
+  };
+
+  const Graph = ForceGraph3D()(document.getElementById('graph'))
+    .graphData({ nodes, links })
+    .nodeThreeObject(node => {
+      if (node.type === 'state') {
+        const group = new THREE.Group();
+        const r = 5 + Math.sqrt(node.count) * 0.9;
+        const sphere = new THREE.Mesh(
+          new THREE.SphereGeometry(r, 24, 24),
+          new THREE.MeshStandardMaterial({ color: node.color, emissive: node.color, emissiveIntensity: 0.4, metalness: 0.4, roughness: 0.3 })
+        );
+        group.add(sphere);
+        const lbl = makeSprite(node.name.toUpperCase(), '#eaf4ee', r * 3.2);
+        lbl.position.y = r + 6;
+        group.add(lbl);
+        return group;
+      }
+      return new THREE.Mesh(
+        new THREE.SphereGeometry(1.6, 10, 10),
+        new THREE.MeshStandardMaterial({ color: node.color, emissive: node.color, emissiveIntensity: 0.6 })
+      );
+    })
+    .nodeVal(node => node.type === 'state' ? 8 + Math.sqrt(node.count) * 1.4 : 1.4)
+    .linkColor(() => 'rgba(0, 255, 170, 0.13)')
+    .linkWidth(0.5)
+    .linkDirectionalParticles(1)
+    .linkDirectionalParticleWidth(1.6)
+    .linkDirectionalParticleSpeed(0.005)
+    .linkDirectionalParticleColor(() => 'rgba(0, 255, 170, 0.9)')
+    .dagMode('td')
+    .dagLevelDistance(120)
+    .warmupTicks(150)
+    .cooldownTicks(350)
+    .backgroundColor('rgba(0,0,0,0)');
+
+  Graph.scene().add(new THREE.AmbientLight(0xffffff, 0.55));
+  Graph.scene().add(new THREE.DirectionalLight(0xffffff, 0.9));
+  Graph.scene().add(new THREE.PointLight(0x00ffaa, 0.4, 0, 0));
+
+  Graph.cameraPosition({ x: 0, y: 140, z: 520 }, { x: 0, y: -60, z: 0 }, 0);
+  setTimeout(() => { try { Graph.zoomToFit(900, 80); } catch (e) {} }, 2500);
+  Graph.controls().autoRotate = true;
+  Graph.controls().autoRotateSpeed = 0.7;
+
+  const tip = document.getElementById('tip');
+  Graph.onNodeHover(node => {
+    if (node) {
+      tip.style.display = 'block';
+      if (node.type === 'state') {
+        tip.innerHTML = `<div class="t">${node.name}</div><div class="a">STATE HUB</div><div class="c">${node.count.toLocaleString()} cameras</div>`;
+      } else {
+        tip.innerHTML = `<div class="t">${node.lat.toFixed(3)}, ${node.lon.toFixed(3)}</div><div class="a">→ ${node.state}</div><div class="c">${node.count.toLocaleString()} cameras</div>`;
+      }
+    } else tip.style.display = 'none';
+  });
+  Graph.onNodeClick(node => {
+    Graph.cameraPosition({ x: node.x * 1.5, y: node.y * 1.5 + 60, z: node.z * 1.5 }, node, 900);
+  });
+
+  window.addEventListener('resize', () => {
+    Graph.width(window.innerWidth).height(window.innerHeight);
+  });
+})();
+</script>
+</body>
+</html>
