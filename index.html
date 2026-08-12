@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FLOCK NETWORK // PUBLIC MAP</title>
+<style>
+  :root {
+    --bg: #04060c;
+    --panel: rgba(10, 16, 28, 0.82);
+    --line: rgba(0, 255, 170, 0.18);
+    --accent: #00ffaa;
+    --accent2: #00d0ff;
+    --warn: #ffb020;
+    --text: #c8d6e0;
+    --dim: #5b6b78;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: var(--bg); color: var(--text);
+    font-family: "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace;
+    overflow: hidden; }
+  #globe { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  .hud { position: fixed; top: 18px; left: 18px; z-index: 10; pointer-events: none; }
+  .hud .title { font-size: 15px; font-weight: 700; letter-spacing: 2px; color: #eaf4ee; }
+  .hud .sub { font-size: 10px; letter-spacing: 3px; color: var(--dim); margin-top: 4px; text-transform: uppercase; }
+  .hud .badge { display: inline-block; margin-top: 10px; padding: 3px 8px; font-size: 9px;
+    letter-spacing: 2px; border: 1px solid var(--accent2); color: var(--accent2); border-radius: 2px; }
+
+  .stats { position: fixed; top: 18px; right: 18px; z-index: 10; text-align: right; pointer-events: none; }
+  .stats .num { font-size: 26px; font-weight: 700; color: var(--accent); }
+  .stats .lbl { font-size: 9px; letter-spacing: 2px; color: var(--dim); text-transform: uppercase; }
+  .stats .row { margin-top: 10px; }
+
+  .controls { position: fixed; bottom: 18px; left: 18px; z-index: 10; display: flex; gap: 8px; }
+  .btn { background: var(--panel); border: 1px solid var(--line); color: var(--text);
+    font-family: inherit; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 8px 14px; border-radius: 4px; cursor: pointer; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,255,170,0.08); }
+
+  .attrib { position: fixed; bottom: 14px; right: 18px; z-index: 10; font-size: 9px; color: var(--dim);
+    letter-spacing: 0.5px; text-align: right; pointer-events: none; max-width: 40vw; line-height: 1.5; }
+
+  #clock { position: fixed; bottom: 14px; left: 18px; z-index: 5; font-size: 10px; color: var(--dim);
+    letter-spacing: 1px; pointer-events: none; }
+
+  .tooltip { position: fixed; z-index: 20; background: rgba(6, 12, 20, 0.94); border: 1px solid var(--line);
+    padding: 8px 12px; border-radius: 4px; font-size: 11px; pointer-events: none; display: none; }
+  .tooltip .t { color: var(--accent2); letter-spacing: 1px; }
+  .tooltip .c { color: var(--dim); margin-top: 3px; font-size: 10px; }
+</style>
+</head>
+<body>
+
+<div id="globe"></div>
+
+<div class="hud">
+  <div class="title">FLOCK NETWORK // PUBLIC MAP</div>
+  <div class="sub">Crowdsourced ALPR camera locations — DeFlock / OpenStreetMap</div>
+  <div class="badge">PUBLIC DATA · NOT AFFILIATED WITH FLOCK SAFETY</div>
+</div>
+
+<div class="stats">
+  <div class="row"><div class="num" id="statCams">0</div><div class="lbl">Flock cameras</div></div>
+  <div class="row"><div class="num" id="statMode">PTS</div><div class="lbl">Mode</div></div>
+</div>
+
+<div class="controls">
+  <button class="btn active" id="btnPoints">Points</button>
+  <button class="btn" id="btnHex">Density</button>
+  <button class="btn" id="btnReset">Reset view</button>
+</div>
+
+<div class="attrib">Data © <a href="https://www.openstreetmap.org/copyright" target="_blank" style="color:var(--dim)">OpenStreetMap</a> contributors &amp; <a href="https://deflock.org" target="_blank" style="color:var(--dim)">DeFlock</a> (dontgetflocked.com) — ODbL.<br/>Crowdsourced &amp; not exhaustive. Not official Flock Safety data.</div>
+
+<div id="clock"></div>
+<div class="tooltip" id="tip"></div>
+
+<script src="https://unpkg.com/three@0.150.0/build/three.min.js"></script>
+<script src="https://unpkg.com/globe.gl@2.32.0/dist/globe.gl.js"></script>
+<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
+<script src="flock_points.js"></script>
+<script>
+(() => {
+  const pairs = FLOCK_POINTS.flat(); // array of [lat, lon] pairs
+  const n = pairs.length;
+  document.getElementById('statCams').textContent = n.toLocaleString();
+
+  const globe = Globe()
+    .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+    .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+    .backgroundColor('rgba(0,0,0,0)');
+
+  fetch('https://unpkg.com/world-atlas@2.0.2/countries-110m.json')
+    .then(r => r.json())
+    .then(j => {
+      const countries = topojson.feature(j, j.objects.countries);
+      globe.polygonsData(countries.features)
+        .polygonCapColor(() => 'rgba(10, 22, 34, 0.85)')
+        .polygonSideColor(() => 'rgba(0, 255, 170, 0.04)')
+        .polygonStrokeColor(() => 'rgba(0, 255, 170, 0.25)')
+        .polygonAltitude(0.006);
+    });
+
+  globe(document.getElementById('globe'))
+    .width(window.innerWidth)
+    .height(window.innerHeight)
+    .pointOfView({ lat: 39.8, lng: -98.5, altitude: 2.1 });
+
+  // ---- points mode ----
+  const pointData = pairs.map(p => ({ lat: p[0], lon: p[1] }));
+
+  globe.pointsData(pointData)
+    .pointLat(d => d.lat)
+    .pointLng(d => d.lon)
+    .pointAltitude(0.008)
+    .pointRadius(0.22)
+    .pointColor(() => 'rgba(0, 255, 170, 0.75)')
+    .pointsMerge(true);  // single geometry for 100k+ points
+
+  // ---- hexbin mode ----
+  const hex = pairs.map(p => [p[1], p[0]]); // [lng, lat] for hexbin
+  globe.hexBinPointsData([]);
+
+  // ---- controls ----
+  const btnPts = document.getElementById('btnPoints');
+  const btnHex = document.getElementById('btnHex');
+  const statMode = document.getElementById('statMode');
+
+  const setMode = mode => {
+    btnPts.classList.toggle('active', mode === 'pts');
+    btnHex.classList.toggle('active', mode === 'hex');
+    if (mode === 'pts') {
+      globe.pointsData(pointData).hexBinPointsData([]);
+      statMode.textContent = 'PTS';
+    } else {
+      globe.pointsData([]).hexBinPointsData(hex)
+        .hexBinPointLat(d => d[1])
+        .hexBinPointLng(d => d[0])
+        .hexAltitude(d => d.points.length * 0.00004)
+        .hexBinResolution(3)
+        .hexTopColor(d => `rgba(0,255,170,${Math.min(0.9, 0.25 + d.points.length / 4000)})`)
+        .hexSideColor(() => 'rgba(0,255,170,0.1)')
+        .hexBinMerge(true);
+      statMode.textContent = 'HEX';
+    }
+  };
+  btnPts.onclick = () => setMode('pts');
+  btnHex.onclick = () => setMode('hex');
+  document.getElementById('btnReset').onclick = () =>
+    globe.pointOfView({ lat: 39.8, lng: -98.5, altitude: 2.1 }, 900);
+
+  // ---- tooltip ----
+  const tip = document.getElementById('tip');
+  globe.onPointHover(p => {
+    if (p) {
+      tip.style.display = 'block';
+      tip.innerHTML = `<div class="t">FLOCK CAMERA</div><div class="c">${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}</div>`;
+    } else tip.style.display = 'none';
+  });
+  globe.onPointClick(p => { if (p) globe.pointOfView({ lat: p.lat, lng: p.lon, altitude: 0.6 }, 800); });
+
+  // ---- clock ----
+  const tick = () => {
+    document.getElementById('clock').textContent = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  };
+  tick(); setInterval(tick, 1000);
+
+  window.addEventListener('resize', () => {
+    globe.width(window.innerWidth).height(window.innerHeight);
+  });
+})();
+</script>
+</body>
+</html>
