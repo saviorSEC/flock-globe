@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>FLOCK NETWORK // PUBLIC MAP</title>
 <style>
   :root {
@@ -83,6 +83,32 @@
     background: rgba(4,6,12,0.72); padding: 4px 14px; border: 1px solid rgba(0,255,170,0.15); border-radius: 4px;
     white-space: nowrap; }
   .brand b { color: var(--accent); font-weight: 700; }
+
+  /* ---- mobile / small screens ---- */
+  @media (max-width: 768px) {
+    .tabs { top: 8px; padding: 3px; gap: 2px; max-width: 97vw; }
+    .tabs a { font-size: 8.5px; letter-spacing: 1.5px; padding: 6px 9px; }
+    .hud { top: 54px; left: 10px; max-width: 55vw; }
+    .hud .title { font-size: 12px; letter-spacing: 1.5px; }
+    .hud .sub { font-size: 8px; letter-spacing: 2px; margin-top: 3px; }
+    .hud .badge { font-size: 7.5px; margin-top: 6px; padding: 2px 6px; letter-spacing: 1.5px; }
+    .stats { top: 54px; right: 10px; }
+    .stats .num { font-size: 18px; }
+    .stats .lbl { font-size: 7.5px; letter-spacing: 1.5px; }
+    .stats .row { margin-top: 6px; }
+    .panel-detail { top: auto; bottom: 0; left: 0; right: 0; width: 100%; max-height: 58vh;
+      border-radius: 12px 12px 0 0; border-left: none; border-right: none; border-bottom: none; }
+    .panel, .legend, .list { left: 10px; right: 10px; width: auto; bottom: 10px; max-height: 30vh; }
+    .panel .head, .legend .head, .list .head { font-size: 9px; padding: 8px 12px; }
+    .brand { bottom: 6px; font-size: 7.5px; letter-spacing: 1.5px; padding: 3px 10px; }
+    .note, .attrib { font-size: 7.5px; letter-spacing: 1px; max-width: 62vw; }
+    #clock { font-size: 8px; }
+    .controls { bottom: 8px; left: 10px; gap: 6px; }
+    .btn { font-size: 8px; padding: 6px 10px; letter-spacing: 1px; }
+    .tooltip { font-size: 9px; max-width: 70vw; }
+    .kv .k { font-size: 8px; }
+    .kv .v { font-size: 10px; }
+  }
 </style>
 </head>
 <body>
