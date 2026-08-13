@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>FLOCK NETWORK // INTERNAL — INFRASTRUCTURE TOPOLOGY</title>
+<title>FLOCK NETWORK // NETWORK+INTERNAL — BRIDGE</title>
 <style>
   :root {
     --bg: #04060c;
@@ -96,28 +96,28 @@
 <div class="tabs">
   <a href="index.html">Globe</a>
   <a href="network.html">Network layer</a>
-  <a href="internal.html" class="active">Internal network</a>
-  <a href="bridge.html">Network+Internal</a>
+  <a href="internal.html">Internal network</a>
+  <a href="bridge.html" class="active">Network+Internal</a>
 </div>
 
 <div class="hud">
-  <div class="title">INTERNAL NETWORK // TOPOLOGY</div>
-  <div class="sub">Flock Safety infrastructure — passive OSINT (DNS + CT + frontend)</div>
-  <div class="badge">PASSIVE OSINT · RFC1918 NOT ROUTABLE</div>
+  <div class="title">NETWORK + INTERNAL // BRIDGE</div>
+  <div class="sub">Camera fleet → device edge → API gateway → core → data → GovCloud</div>
+  <div class="badge">DATA-FLOW VIEW · OSINT + LOCAL SNAPSHOT</div>
 </div>
 
 <div class="stats">
-  <div class="row"><div class="num" id="statZones">0</div><div class="lbl">Zones</div></div>
-  <div class="row"><div class="num" id="statSvc">0</div><div class="lbl">Services</div></div>
+  <div class="row"><div class="num" id="statZones">0</div><div class="lbl">Layers</div></div>
+  <div class="row"><div class="num" id="statSvc">0</div><div class="lbl">Nodes</div></div>
   <div class="row"><div class="num" id="statLinks">0</div><div class="lbl">Links</div></div>
 </div>
 
 <div class="legend">
-  <div class="head">Zones — by service count</div>
+  <div class="head">Layers — by node count</div>
   <div class="rows" id="zoneList"></div>
 </div>
 
-<div class="attrib">Recon data: crt.sh certificate transparency, DNS resolution (dig), frontend bundle analysis. Internal RFC1918 addresses shown are not routable from the internet. Visualization for research only.</div>
+<div class="attrib">Flow: public camera fleet (DeFlock/OSM) → device edge → API gateway → internal core (EKS/Auth0) → data stores → GovCloud. Local snapshot adds NCRIC camera networks. Research visualization only.</div>
 
 <div class="tooltip" id="tip"></div>
 
@@ -132,10 +132,10 @@
 
 <script src="https://unpkg.com/three@0.150.0/build/three.min.js"></script>
 <script src="https://unpkg.com/3d-force-graph@1.73.0/dist/3d-force-graph.min.js"></script>
-<script src="internal_network.js"></script>
+<script src="bridge.js"></script>
 <script>
 (() => {
-  const { zones, services, ipPools, links } = FLOCK_INT;
+  const { zones, services, ipPools, links } = FLOCK_BRIDGE;
   const zoneById = Object.fromEntries(zones.map(z => [z.id, z]));
   const zoneColor = Object.fromEntries(zones.map(z => [z.id, z.color]));
   const poolById = Object.fromEntries(ipPools.map(p => [p.id, p]));
@@ -144,6 +144,7 @@
   // count services per zone
   const zoneCounts = {};
   services.forEach(s => zoneCounts[s.zone] = (zoneCounts[s.zone] || 0) + 1);
+  ipPools.forEach(p => zoneCounts[p.zone] = (zoneCounts[p.zone] || 0) + 1);
 
   const nodes = [];
   zones.forEach(z => nodes.push({ id: z.id, type: 'zone', name: z.name, zone: z.id, color: z.color, note: z.note, count: zoneCounts[z.id] || 0 }));
@@ -226,6 +227,7 @@
   Graph.scene().add(new THREE.PointLight(0x00ffaa, 0.4, 0, 0));
 
   Graph.cameraPosition({ x: 0, y: 100, z: 340 }, { x: 0, y: 0, z: 0 }, 0);
+  Graph.onEngineStop(() => { try { Graph.zoomToFit(900, 80); } catch (e) {} });
   Graph.controls().autoRotate = true;
   Graph.controls().autoRotateSpeed = 0.6;
 
@@ -252,8 +254,8 @@
     detailTitle.textContent = node.name;
     detailBody.innerHTML = '';
     if (node.type === 'zone') {
-      detailType.textContent = 'Zone hub';
-      const members = services.filter(s => s.zone === node.id);
+      detailType.textContent = 'Layer hub';
+      const members = services.concat(ipPools).filter(s => s.zone === node.id);
       detailBody.innerHTML = kv('Services', members.length) + kv('Note', node.note) +
         `<div class="p-sec">Services in zone</div><div class="p-list">${members.map(s => `<div class="p-item" data-id="${s.id}">${s.name}<div class="coords">${s.role || ''}</div></div>`).join('')}</div>`;
       detailBody.querySelectorAll('.p-item').forEach(el => {
@@ -262,16 +264,25 @@
     } else {
       detailType.textContent = node.type === 'pool' ? 'IP pool' : 'Service node';
       const zoneName = zoneById[node.zone] ? zoneById[node.zone].name : '';
+      const srcId = l => l.source && typeof l.source === 'object' ? l.source.id : l.source;
+      const tgtId = l => l.target && typeof l.target === 'object' ? l.target.id : l.target;
+      const fedBy = graphLinks.filter(l => tgtId(l) === node.id).map(l => srcId(l));
+      const leadsTo = graphLinks.filter(l => srcId(l) === node.id).map(l => tgtId(l));
+      const nameOf = id => { const n = nodes.find(x => x.id === id); return n ? n.name : id; };
       detailBody.innerHTML =
         kv('Role', node.role) +
-        kv('Zone', zoneName) +
+        kv('Layer', zoneName) +
         (node.dns ? `<div class="p-sec">DNS</div><div class="p-list">${node.dns.map(d => `<div class="p-item">${esc(d)}</div>`).join('')}</div>` : '') +
         (node.ips ? `<div class="p-sec">Addresses</div><div class="p-list">${node.ips.map(d => `<div class="p-item">${esc(d)}</div>`).join('')}</div>` : '') +
         listBlock('Certificates', node.cert ? [node.cert] : null) +
         listBlock('Keys / tokens', node.keys) +
         listBlock('API endpoints', node.endpoints) +
         kv('Note', node.note) +
-        `<div class="p-sec">Leads into</div><div class="p-note">Part of zone → <b style="color:var(--accent2)">${zoneName}</b>.</div>`;
+        `<div class="p-sec">Fed by (${fedBy.length})</div><div class="p-list">${fedBy.length ? fedBy.map(id => `<div class="p-item" data-jump="${id}">${esc(nameOf(id))}<div class="coords">upstream</div></div>`).join('') : '<div class="p-note">— source layer (nothing feeds into this)</div>'}</div>` +
+        `<div class="p-sec">Leads into (${leadsTo.length})</div><div class="p-list">${leadsTo.length ? leadsTo.map(id => `<div class="p-item" data-jump="${id}">${esc(nameOf(id))}<div class="coords">downstream</div></div>`).join('') : '<div class="p-note">— sink layer (goes nowhere downstream)</div>'}</div>`;
+      detailBody.querySelectorAll('[data-jump]').forEach(el => {
+        el.onclick = () => openDetail(nodes.find(n => n.id === el.dataset.jump));
+      });
     }
     detailEl.classList.add('open');
   };
