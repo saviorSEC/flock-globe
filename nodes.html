@@ -179,10 +179,11 @@
   <div class="controls">
     <div class="field"><input id="search" placeholder="Search organization or city…" autocomplete="off" /></div>
     <div class="field"><select id="orgFilter"><option value="">All organizations</option></select></div>
+    <div class="field"><select id="typeFilter"><option value="">All device types</option><option value="ALPR">ALPR</option><option value="camera">Camera</option><option value="gunshot_detector">Gunshot detector</option><option value="camera;alpr">Camera + ALPR</option><option value="__blank__">Untagged / no type</option></select></div>
     <div class="field">
       <select id="colorMode">
         <option value="share">Color: sharing_count</option>
-        <option value="type">Color: device type</option>
+        <option value="type">Color: surveillance type</option>
         <option value="org">Color: organization</option>
       </select>
     </div>
@@ -268,12 +269,12 @@ function orgColor(org) {
   return `hsl(${h % 360}, 72%, 58%)`;
 }
 function typeColor(t) {
-  const m = { falcon: '#00ffaa', picard: '#00d0ff', wing: '#ffb020', raven: '#ff5c8a', condor: '#b388ff', falconFlex: '#7dff6a', falconHighway: '#ff8c42', avicore: '#c9d1d9' };
-  return m[t] || '#7a8a99';
+  const m = { ALPR: '#00ffaa', camera: '#00d0ff', gunshot_detector: '#ff5c8a', 'camera;alpr': '#b388ff', '': '#7a8a99' };
+  return m[t || ''] || '#7a8a99';
 }
 function nodeColor(n) {
   if (colorMode === 'org') return orgColor(n.org);
-  if (colorMode === 'type') return typeColor(n.dev.type);
+  if (colorMode === 'type') return typeColor(n.dev.stype);
   return shareColor(n.sc);
 }
 
@@ -316,7 +317,16 @@ function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;'
 function applyFilter() {
   const q = $('search').value.trim().toLowerCase();
   const org = $('orgFilter').value;
-  filtered = NODES.filter(n => (!org || n.org === org) && (!q || (n.org + ' ' + n.lat + ' ' + n.lon).toLowerCase().includes(q)));
+  const dtype = $('typeFilter').value;
+  filtered = NODES.filter(n => {
+    if (org && n.org !== org) return false;
+    if (q && !(n.org + ' ' + n.lat + ' ' + n.lon).toLowerCase().includes(q)) return false;
+    if (dtype) {
+      const st = n.dev.stype || '';
+      if (dtype === '__blank__' ? st !== '' : st !== dtype) return false;
+    }
+    return true;
+  });
   const sort = $('sortMode').value;
   if (sort === 'share') filtered.sort((a, b) => b.sc - a.sc || a.org.localeCompare(b.org));
   else if (sort === 'links') filtered.sort((a, b) => b.sl - a.sl || a.org.localeCompare(b.org));
@@ -343,7 +353,8 @@ function renderDetail(n) {
   if (activeTab === 'device') {
     const d = n.dev || {};
     body.innerHTML = `
-      <div class="kv"><div class="k">Device type</div><div class="v">${d.type || '—'}</div></div>
+      <div class="kv"><div class="k">Surveillance type</div><div class="v">${d.stype || '—'}</div></div>
+      <div class="kv"><div class="k">Camera type</div><div class="v">${d.type || '—'}</div></div>
       <div class="kv"><div class="k">Manufacturer</div><div class="v">${d.manufacturer || '—'}</div></div>
       <div class="kv"><div class="k">Operator</div><div class="v">${d.operator || n.org}</div></div>
       <div class="kv"><div class="k">Mount</div><div class="v">${d.mount || '—'}</div></div>
@@ -428,8 +439,9 @@ function updateLegend() {
       <div class="row"><span><span class="sw" style="background:${shareColor(50)}"></span>26–50</span><span><span class="sw" style="background:${shareColor(100)}"></span>51–100</span></div>
       <div class="row"><span><span class="sw" style="background:${shareColor(500)}"></span>100+</span><span style="color:var(--dim)">${filtered.length.toLocaleString()} shown</span></div>`;
   } else if (colorMode === 'type') {
-    const types = ['falcon','picard','wing','raven','condor','falconFlex','falconHighway','avicore'];
-    el.innerHTML = `<div class="lt">Color: device type</div>` + types.map(t => `<div class="row"><span><span class="sw" style="background:${typeColor(t)}"></span>${t}</span></div>`).join('');
+    const types = ['ALPR','camera','gunshot_detector','camera;alpr',''];
+    const labels = {ALPR:'ALPR', camera:'Camera', gunshot_detector:'Gunshot detector', 'camera;alpr':'Camera + ALPR', '':'Untagged'};
+    el.innerHTML = `<div class="lt">Color: surveillance type</div>` + types.map(t => `<div class="row"><span><span class="sw" style="background:${typeColor(t)}"></span>${labels[t]}</span></div>`).join('');
   } else {
     el.innerHTML = `<div class="lt">Color: organization</div><div class="row"><span>hashed hue per source org</span></div><div class="row"><span style="color:var(--dim)">${filtered.length.toLocaleString()} shown</span></div>`;
   }
@@ -442,6 +454,7 @@ for (const o of orgs) { const opt = document.createElement('option'); opt.value 
 // events
 $('search').addEventListener('input', () => { clearTimeout(window._t); window._t = setTimeout(applyFilter, 120); });
 $('orgFilter').addEventListener('change', applyFilter);
+$('typeFilter').addEventListener('change', applyFilter);
 $('sortMode').addEventListener('change', applyFilter);
 $('colorMode').addEventListener('change', () => { colorMode = $('colorMode').value; rebuildMarkers(); updateLegend(); });
 $('basemap').addEventListener('change', () => {
