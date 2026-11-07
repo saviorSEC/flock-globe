@@ -6,16 +6,18 @@ Multi-view operations dashboard mapping the public Flock Safety camera network a
 
 ## Views
 
-The app is organized as four tabs, with the internal topology view as the landing page:
+The app is organized as five tabs, with the internal topology view as the landing page:
 
 - **Internal** (landing) — Flock Safety infrastructure topology: 87-subdomain inventory, VPC/IP pools, deployment architecture (EKS, S3, RDS, ElastiCache, SQS), GovCloud, and monitoring stack
 - **Network layer** — the public camera network rendered as a network-layer map
 - **Internal+Network** — end-to-end flow visualization: camera fleet, edge, API gateway, core, data, GovCloud
 - **Globe** — 106,308 public Flock camera locations as points on a 3D globe, with a density (hexbin) heat view toggle
+- **Nodes** — 4,253 camera-node records with an interactive 2D map, organization/search filters, device details, agency activity stats, and per-node sharing links
 
 ## Data
 
 - **Public camera data:** [DeFlock](https://deflock.org) / [dontgetflocked.com](https://dontgetflocked.com) crowdsourced ALPR map
+- **Node data:** Flock network snapshot (4,253 camera nodes, 84 source organizations, 6,101 unique agency→agency pairs) enriched with OSM/DeFlock device tags and Flock public transparency stats
 - **License:** © OpenStreetMap contributors & DeFlock — **ODbL** ([full copyright](https://www.openstreetmap.org/copyright))
 - **Nature:** Crowdsourced and volunteer-mapped from FOIA requests and public records. **Not exhaustive**, not official, and **not affiliated with or endorsed by Flock Safety**
 - **Infrastructure views:** assembled from open-source intelligence — public subdomain enumeration and open records
@@ -23,6 +25,7 @@ The app is organized as four tabs, with the internal topology view as the landin
 ## Features
 
 - 106,308 public Flock camera locations as points on a 3D globe
+- 4,253-node interactive 2D map with search, org filter, device/activity/sharing detail, and per-node link register
 - Density (hexbin) heat view toggle
 - Infrastructure topology graph with 87-subdomain inventory
 - End-to-end camera-to-cloud flow visualization

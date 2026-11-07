@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>FLOCK NETWORK // NODES — 4,253 CAMERA NODES</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root {
+    --bg: #04060c;
+    --panel: rgba(10, 16, 28, 0.88);
+    --panel2: rgba(12, 20, 34, 0.96);
+    --line: rgba(0, 255, 170, 0.18);
+    --line2: rgba(0, 208, 255, 0.22);
+    --accent: #00ffaa;
+    --accent2: #00d0ff;
+    --warn: #ffb020;
+    --text: #c8d6e0;
+    --dim: #5b6b78;
+    --white: #eaf4ee;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: var(--bg); color: var(--text);
+    font-family: "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace;
+    overflow: hidden; }
+  #map { position: fixed; inset: 0; z-index: 1; background: #04060c; }
+  .leaflet-container { background: #04060c; }
+
+  .tabs { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 1000;
+    display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px;
+    backdrop-filter: blur(10px); max-width: 96vw; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs a { color: var(--dim); text-decoration: none; font-size: 10px; letter-spacing: 2px;
+    text-transform: uppercase; padding: 7px 13px; border-radius: 4px; white-space: nowrap; }
+  .tabs a.active { color: var(--accent); background: rgba(0,255,170,0.08); border: 1px solid var(--line); }
+  .tabs a:hover { color: var(--text); }
+
+  .hud { position: fixed; top: 76px; left: 18px; z-index: 900; pointer-events: none; }
+  .hud .title { font-size: 15px; font-weight: 700; letter-spacing: 2px; color: var(--white); }
+  .hud .sub { font-size: 9.5px; letter-spacing: 2.5px; color: var(--dim); margin-top: 5px; text-transform: uppercase; }
+  .hud .badge { display: inline-block; margin-top: 9px; padding: 3px 8px; font-size: 8px;
+    letter-spacing: 1.8px; border: 1px solid var(--warn); color: var(--warn); border-radius: 2px; }
+
+  .stats { position: fixed; top: 76px; right: 18px; z-index: 900; text-align: right; pointer-events: none;
+    display: grid; grid-template-columns: repeat(2, auto); gap: 8px 18px; }
+  .stats .row { text-align: right; }
+  .stats .num { font-size: 20px; font-weight: 700; color: var(--accent); line-height: 1.1; }
+  .stats .lbl { font-size: 8px; letter-spacing: 1.8px; color: var(--dim); text-transform: uppercase; margin-top: 2px; }
+
+  .sidebar { position: fixed; top: 140px; left: 18px; bottom: 18px; width: 342px; z-index: 950;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    backdrop-filter: blur(10px); display: flex; flex-direction: column; overflow: hidden; }
+  .sidebar .head { padding: 10px 12px 8px; border-bottom: 1px solid var(--line); }
+  .sidebar .head .t { font-size: 10px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; }
+  .sidebar .controls { padding: 9px 10px; display: grid; gap: 7px; border-bottom: 1px solid rgba(0,255,170,0.08); }
+  .field { display: flex; gap: 6px; }
+  .field input, .field select { width: 100%; background: #070d16; border: 1px solid rgba(0,255,170,0.16);
+    color: var(--text); font-family: inherit; font-size: 10.5px; padding: 7px 8px; border-radius: 4px; outline: none; }
+  .field input:focus, .field select:focus { border-color: var(--accent2); }
+  .field select option { background: #070d16; }
+  .btn { background: rgba(0,255,170,0.06); border: 1px solid rgba(0,255,170,0.22); color: var(--accent);
+    font-family: inherit; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; padding: 7px 9px;
+    border-radius: 4px; cursor: pointer; }
+  .btn:hover { background: rgba(0,255,170,0.12); }
+  .count { font-size: 9px; color: var(--dim); letter-spacing: 1px; padding: 6px 12px 3px; }
+  .list { overflow-y: auto; flex: 1; padding: 0 6px 8px; }
+  .list::-webkit-scrollbar { width: 4px; }
+  .list::-webkit-scrollbar-thumb { background: rgba(0,255,170,0.22); }
+  .node-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
+    padding: 7px 8px; border-bottom: 1px solid rgba(0,255,170,0.06); cursor: pointer; border-radius: 3px; }
+  .node-row:hover { background: rgba(0,255,170,0.06); }
+  .node-row.active { background: rgba(0,208,255,0.10); border-left: 2px solid var(--accent2); }
+  .node-row .o { font-size: 10.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .node-row .m { font-size: 8.5px; color: var(--dim); margin-top: 2px; letter-spacing: 0.5px; }
+  .node-row .badge2 { font-size: 9px; color: var(--accent); border: 1px solid rgba(0,255,170,0.22);
+    border-radius: 3px; padding: 2px 5px; min-width: 34px; text-align: center; }
+
+  .detail { position: fixed; top: 140px; right: 18px; bottom: 18px; width: 410px; z-index: 960;
+    background: var(--panel2); border: 1px solid var(--line2); border-radius: 8px;
+    backdrop-filter: blur(12px); display: none; flex-direction: column; overflow: hidden; }
+  .detail.open { display: flex; }
+  .detail .d-head { padding: 12px 14px 10px; border-bottom: 1px solid rgba(0,208,255,0.18); position: relative; }
+  .detail .d-org { font-size: 13px; font-weight: 700; color: var(--white); letter-spacing: .3px; padding-right: 28px; }
+  .detail .d-sub { font-size: 9px; color: var(--dim); letter-spacing: 1.5px; margin-top: 4px; }
+  .detail .d-close { position: absolute; top: 10px; right: 10px; width: 24px; height: 24px;
+    background: none; border: 1px solid rgba(0,208,255,0.25); color: var(--dim); border-radius: 4px; cursor: pointer; }
+  .detail .d-close:hover { color: var(--accent2); border-color: var(--accent2); }
+  .detail .d-tabs { display: flex; gap: 2px; padding: 6px 10px 0; border-bottom: 1px solid rgba(0,208,255,0.12); }
+  .detail .d-tab { flex: 1; background: none; border: none; color: var(--dim); font-family: inherit;
+    font-size: 9px; letter-spacing: 1.4px; text-transform: uppercase; padding: 8px 2px; cursor: pointer; border-bottom: 2px solid transparent; }
+  .detail .d-tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+  .detail .d-body { overflow-y: auto; padding: 12px 14px 20px; font-size: 11px; }
+  .detail .d-body::-webkit-scrollbar { width: 4px; }
+  .detail .d-body::-webkit-scrollbar-thumb { background: rgba(0,208,255,0.22); }
+  .kv { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid rgba(0,255,170,0.06); }
+  .kv .k { color: var(--dim); letter-spacing: 1px; text-transform: uppercase; font-size: 8.5px; padding-top: 2px; flex: 0 0 42%; }
+  .kv .v { color: var(--text); text-align: right; word-break: break-word; font-size: 10.5px; }
+  .kv .v a { color: var(--accent2); text-decoration: none; }
+  .sec { margin-top: 14px; font-size: 8.5px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; }
+  .note { margin-top: 6px; font-size: 9.5px; color: var(--dim); line-height: 1.5; }
+  .pillrow { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .pill { font-size: 9px; color: var(--accent); border: 1px solid rgba(0,255,170,0.22); border-radius: 3px; padding: 3px 6px; }
+  .linklist { margin-top: 7px; border: 1px solid rgba(0,208,255,0.14); border-radius: 4px; max-height: 340px; overflow-y: auto; }
+  .linklist::-webkit-scrollbar { width: 4px; }
+  .linklist::-webkit-scrollbar-thumb { background: rgba(0,208,255,0.22); }
+  .linkrow { padding: 7px 8px; border-bottom: 1px solid rgba(0,255,170,0.05); cursor: pointer; font-size: 10px; }
+  .linkrow:hover { background: rgba(0,208,255,0.07); }
+  .linkrow .to { color: var(--text); }
+  .linkrow .co { color: var(--dim); font-size: 8.5px; margin-top: 2px; }
+  .loading { color: var(--dim); font-size: 10px; padding: 8px 0; }
+
+  .legend { position: fixed; left: 370px; bottom: 18px; z-index: 900; width: 280px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px;
+    font-size: 9px; color: var(--dim); backdrop-filter: blur(8px); }
+  .legend .lt { color: var(--accent); letter-spacing: 1.5px; text-transform: uppercase; font-size: 8.5px; margin-bottom: 5px; }
+  .legend .row { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+  .legend .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+  .attrib { position: fixed; bottom: 14px; right: 18px; z-index: 5; font-size: 8px; color: var(--dim);
+    letter-spacing: .4px; text-align: right; max-width: 42vw; line-height: 1.5; }
+  .brand { position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%); z-index: 15;
+    font-size: 8px; letter-spacing: 2px; color: var(--dim); text-align: center; pointer-events: none;
+    background: rgba(4,6,12,0.72); padding: 4px 12px; border: 1px solid rgba(0,255,170,0.15); border-radius: 4px; white-space: nowrap; }
+  .brand b { color: var(--accent); }
+  .mobilebtn { display: none; position: fixed; z-index: 980; bottom: 18px; left: 18px;
+    background: var(--panel); border: 1px solid var(--line); color: var(--accent); border-radius: 6px;
+    font-family: inherit; font-size: 9px; letter-spacing: 1.5px; padding: 9px 12px; cursor: pointer; }
+
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #0b1220; color: var(--text); border: 1px solid rgba(0,208,255,0.22); }
+  .leaflet-popup-content { margin: 9px 11px; font-size: 10px; line-height: 1.5; }
+  .leaflet-popup-content b { color: var(--white); }
+  .leaflet-control-zoom a { background: #0b1220 !important; color: var(--accent) !important; border-color: rgba(0,255,170,0.18) !important; }
+
+  @media (max-width: 900px) {
+    .tabs { top: 8px; padding: 3px; gap: 2px; }
+    .tabs a { font-size: 8.5px; letter-spacing: 1.2px; padding: 6px 8px; }
+    .hud { top: 52px; left: 10px; max-width: 58vw; }
+    .hud .title { font-size: 12px; letter-spacing: 1.5px; }
+    .hud .sub { font-size: 7.5px; letter-spacing: 1.6px; }
+    .hud .badge { font-size: 6.5px; letter-spacing: 1px; padding: 2px 5px; margin-top: 5px; }
+    .stats { top: 52px; right: 10px; gap: 4px 10px; }
+    .stats .num { font-size: 14px; } .stats .lbl { font-size: 6.5px; letter-spacing: 1px; }
+    .sidebar { top: 96px; left: 8px; bottom: 70px; width: calc(100vw - 16px); transform: translateX(-110%); transition: transform .2s; }
+    .sidebar.open { transform: none; }
+    .detail { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 70vh; border-radius: 10px; }
+    .legend { left: 8px; bottom: 68px; width: 220px; font-size: 8px; }
+    .mobilebtn { display: block; }
+    .attrib { display: none; }
+    .brand { font-size: 6.5px; letter-spacing: 1px; bottom: 4px; }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="tabs">
+  <a href="index.html">⌂</a>
+  <a href="network.html">Network layer</a>
+  <a href="bridge.html">Internal+Network</a>
+  <a href="globe.html">Globe</a>
+  <a href="nodes.html" class="active">Nodes</a>
+</div>
+
+<div class="hud">
+  <div class="title">NODE MAP // FLOCK SAFETY</div>
+  <div class="sub">4,253 camera nodes · public-source snapshot</div>
+  <div class="badge">OSM / DeFlock + Flock transparency</div>
+</div>
+
+<div class="stats">
+  <div class="row"><div class="num">4,253</div><div class="lbl">Nodes</div></div>
+  <div class="row"><div class="num">84</div><div class="lbl">Source orgs</div></div>
+  <div class="row"><div class="num">6,101</div><div class="lbl">Unique pairs</div></div>
+  <div class="row"><div class="num">113,829</div><div class="lbl">Stored links</div></div>
+</div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="head"><div class="t">Node index</div></div>
+  <div class="controls">
+    <div class="field"><input id="search" placeholder="Search organization or city…" autocomplete="off" /></div>
+    <div class="field"><select id="orgFilter"><option value="">All organizations</option></select></div>
+    <div class="field">
+      <select id="colorMode">
+        <option value="share">Color: sharing_count</option>
+        <option value="type">Color: device type</option>
+        <option value="org">Color: organization</option>
+      </select>
+    </div>
+    <div class="field">
+      <select id="sortMode">
+        <option value="org">Sort: organization</option>
+        <option value="share">Sort: sharing_count ↓</option>
+        <option value="links">Sort: stored links ↓</option>
+      </select>
+    </div>
+  </div>
+  <div class="count" id="count">4,253 nodes</div>
+  <div class="list" id="list"></div>
+</aside>
+
+<aside class="detail" id="detail">
+  <div class="d-head">
+    <div class="d-org" id="dOrg">—</div>
+    <div class="d-sub" id="dSub">—</div>
+    <button class="d-close" id="dClose">×</button>
+  </div>
+  <div class="d-tabs">
+    <button class="d-tab active" data-tab="device">Device</button>
+    <button class="d-tab" data-tab="activity">Activity</button>
+    <button class="d-tab" data-tab="sharing">Sharing</button>
+    <button class="d-tab" data-tab="links">Links</button>
+  </div>
+  <div class="d-body" id="dBody"></div>
+</aside>
+
+<div class="legend" id="legend"></div>
+<button class="mobilebtn" id="mobilebtn">☰ Nodes</button>
+
+<div class="attrib">Public camera data: DeFlock / OpenStreetMap contributors (ODbL). Transparency stats: Flock Safety public transparency portal. Snapshot — not live, not exhaustive.</div>
+<div class="brand"><b>CHURCH OF MALWARE</b> // FLOCK NETWORK</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="nodes_data.js"></script>
+<script>
+const NODES = FLOCK_NODES;
+const map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([37.8, -96], 4);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+
+const markerLayer = L.layerGroup().addTo(map);
+const markers = new Map();
+let filtered = NODES.slice();
+let selectedId = null;
+let colorMode = 'share';
+let linksCache = null;
+let activeTab = 'device';
+
+const $ = id => document.getElementById(id);
+const fmt = n => (n === null || n === undefined || n === '' || n === 'NA') ? '—' : Number(n).toLocaleString();
+
+function shareColor(v) {
+  const t = Math.min(1, Math.max(0, Math.log10(Math.max(1, v)) / 3));
+  const stops = [[13,8,135],[126,3,168],[204,71,120],[248,149,64],[240,249,33]];
+  const x = t * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(x)), f = x - i;
+  const c = stops[i].map((v0, j) => Math.round(v0 + (stops[i+1][j] - v0) * f));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+function orgColor(org) {
+  let h = 0; for (let i = 0; i < org.length; i++) h = (h * 31 + org.charCodeAt(i)) >>> 0;
+  return `hsl(${h % 360}, 72%, 58%)`;
+}
+function typeColor(t) {
+  const m = { falcon: '#00ffaa', picard: '#00d0ff', wing: '#ffb020', raven: '#ff5c8a', condor: '#b388ff', falconFlex: '#7dff6a', falconHighway: '#ff8c42', avicore: '#c9d1d9' };
+  return m[t] || '#7a8a99';
+}
+function nodeColor(n) {
+  if (colorMode === 'org') return orgColor(n.org);
+  if (colorMode === 'type') return typeColor(n.dev.type);
+  return shareColor(n.sc);
+}
+
+function rebuildMarkers() {
+  markerLayer.clearLayers();
+  markers.clear();
+  const bounds = L.latLngBounds([]);
+  for (const n of filtered) {
+    const m = L.circleMarker([n.lat, n.lon], {
+      radius: 4, color: nodeColor(n), weight: 0.6, fillColor: nodeColor(n), fillOpacity: 0.8
+    });
+    m.on('click', () => selectNode(n.id));
+    m.on('mouseover', () => { m.setStyle({ radius: 7, weight: 1.5 }); });
+    m.on('mouseout', () => { m.setStyle({ radius: 4, weight: 0.6 }); });
+    markerLayer.addLayer(m);
+    markers.set(n.id, m);
+    bounds.extend([n.lat, n.lon]);
+  }
+  if (filtered.length === NODES.length) map.fitBounds(bounds, { padding: [30, 30] });
+}
+
+function renderList() {
+  const list = $('list');
+  list.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  const shown = filtered.slice(0, 1200); // keep DOM light; search narrows
+  for (const n of shown) {
+    const row = document.createElement('div');
+    row.className = 'node-row' + (n.id === selectedId ? ' active' : '');
+    row.dataset.id = n.id;
+    row.innerHTML = `<div><div class="o">${escapeHtml(n.org)}</div><div class="m">${n.lat.toFixed(5)}, ${n.lon.toFixed(5)} · ${n.sl} links</div></div><div class="badge2">${n.sc}</div>`;
+    row.onclick = () => selectNode(n.id);
+    frag.appendChild(row);
+  }
+  list.appendChild(frag);
+  $('count').textContent = `${filtered.length.toLocaleString()} node${filtered.length === 1 ? '' : 's'}${filtered.length > shown.length ? ` · showing first ${shown.length.toLocaleString()}` : ''}`;
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function applyFilter() {
+  const q = $('search').value.trim().toLowerCase();
+  const org = $('orgFilter').value;
+  filtered = NODES.filter(n => (!org || n.org === org) && (!q || (n.org + ' ' + n.lat + ' ' + n.lon).toLowerCase().includes(q)));
+  const sort = $('sortMode').value;
+  if (sort === 'share') filtered.sort((a, b) => b.sc - a.sc || a.org.localeCompare(b.org));
+  else if (sort === 'links') filtered.sort((a, b) => b.sl - a.sl || a.org.localeCompare(b.org));
+  else filtered.sort((a, b) => a.org.localeCompare(b.org) || a.lat - b.lat);
+  rebuildMarkers();
+  renderList();
+  updateLegend();
+}
+
+function selectNode(id) {
+  const n = NODES.find(x => x.id === id);
+  if (!n) return;
+  selectedId = id;
+  document.querySelectorAll('.node-row').forEach(r => r.classList.toggle('active', Number(r.dataset.id) === id));
+  $('detail').classList.add('open');
+  $('dOrg').textContent = n.org;
+  $('dSub').textContent = `NODE ${n.id.toLocaleString()} / ${n.ac.toLocaleString()} · ${n.lat.toFixed(6)}, ${n.lon.toFixed(6)}`;
+  map.flyTo([n.lat, n.lon], 14, { duration: 0.8 });
+  renderDetail(n);
+  history.replaceState(null, '', '#node=' + id);
+}
+function renderDetail(n) {
+  const body = $('dBody');
+  if (activeTab === 'device') {
+    const d = n.dev || {};
+    body.innerHTML = `
+      <div class="kv"><div class="k">Device type</div><div class="v">${d.type || '—'}</div></div>
+      <div class="kv"><div class="k">Manufacturer</div><div class="v">${d.manufacturer || '—'}</div></div>
+      <div class="kv"><div class="k">Operator</div><div class="v">${d.operator || n.org}</div></div>
+      <div class="kv"><div class="k">Mount</div><div class="v">${d.mount || '—'}</div></div>
+      <div class="kv"><div class="k">Direction</div><div class="v">${d.direction ? d.direction + '°' : '—'}</div></div>
+      <div class="kv"><div class="k">Surveillance</div><div class="v">${d.surveillance || '—'} ${d.zone ? '· ' + d.zone : ''}</div></div>
+      <div class="kv"><div class="k">Height</div><div class="v">${d.height || '—'}</div></div>
+      <div class="kv"><div class="k">OSM name</div><div class="v">${d.name || '—'}</div></div>
+      <div class="sec">Communications (platform)</div>
+      <div class="note">Flock devices backhaul over cellular/LTE to Flock's cloud. Per-device radio, carrier, signal, and live telemetry are <b>not exposed</b> in this dataset. What is recorded here is the device identity, location, sharing configuration, and agency-level transparency stats.</div>
+      <div class="sec">External links</div>
+      <div class="pillrow">
+        <a class="pill" target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${n.lat}&mlon=${n.lon}#map=19/${n.lat}/${n.lon}">OSM</a>
+        <a class="pill" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${n.lat},${n.lon}">Google Maps</a>
+        <a class="pill" target="_blank" rel="noopener" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${n.lat},${n.lon}">Street View</a>
+        ${n.tr && n.tr.portal ? `<a class="pill" target="_blank" rel="noopener" href="${n.tr.portal}">Transparency portal</a>` : ''}
+      </div>`;
+  } else if (activeTab === 'activity') {
+    const t = n.tr || {};
+    body.innerHTML = `
+      <div class="kv"><div class="k">Agency cameras</div><div class="v">${fmt(t.cameras)}</div></div>
+      <div class="kv"><div class="k">Retention</div><div class="v">${t.retention || '—'}</div></div>
+      <div class="kv"><div class="k">Vehicles detected (30d)</div><div class="v">${fmt(t.vehicles)}</div></div>
+      <div class="kv"><div class="k">Searches (30d)</div><div class="v">${fmt(t.searches)}</div></div>
+      <div class="kv"><div class="k">Hotlist hits (30d)</div><div class="v">${t.hotlist_hits || '—'}</div></div>
+      <div class="kv"><div class="k">External orgs</div><div class="v">${fmt(t.external_count)}</div></div>
+      <div class="kv"><div class="k">Agency sharing_count</div><div class="v">${fmt(t.sharing_count)}</div></div>
+      <div class="sec">External organizations (sample)</div>
+      <div class="pillrow">${(t.external_sample || []).map(x => `<span class="pill">${escapeHtml(x)}</span>`).join('') || '<span class="note">—</span>'}</div>
+      <div class="note">Activity figures are agency-level transparency stats, not per-camera counts. They are repeated on each camera node the agency owns.</div>`;
+  } else if (activeTab === 'sharing') {
+    body.innerHTML = `
+      <div class="kv"><div class="k">Source organization</div><div class="v">${escapeHtml(n.org)}</div></div>
+      <div class="kv"><div class="k">Nodes at this org</div><div class="v">${n.ai.toLocaleString()} of ${n.ac.toLocaleString()}</div></div>
+      <div class="kv"><div class="k">sharing_count</div><div class="v">${n.sc.toLocaleString()}</div></div>
+      <div class="kv"><div class="k">Stored links on node</div><div class="v">${n.sl.toLocaleString()}</div></div>
+      <div class="kv"><div class="k">Unique partners</div><div class="v">${n.up.toLocaleString()}</div></div>
+      <div class="note">A “link” is a recorded outbound sharing relationship from this camera node to a destination organization. The same agency partner list repeats on every node the agency owns, so the global 113,829 rows collapse to 6,101 unique agency→agency pairs.</div>
+      <div class="sec">Full link register</div>
+      <div class="note">Open the <b>Links</b> tab to load every stored connection for this node.</div>`;
+  } else {
+    body.innerHTML = `<div class="loading" id="linksLoading">Click “Load links” to fetch the full link register…</div><div id="linksList"></div>`;
+    const btn = document.createElement('button');
+    btn.className = 'btn'; btn.textContent = 'Load links';
+    btn.onclick = () => loadLinks(n.id);
+    body.prepend(btn);
+  }
+}
+async function loadLinks(id) {
+  const list = $('linksList'), loading = $('linksLoading');
+  if (!list) return;
+  loading.textContent = 'Loading full link register…';
+  try {
+    if (!linksCache) {
+      const res = await fetch('nodes_links.json', { cache: 'force-cache' });
+      linksCache = await res.json();
+    }
+    const arr = linksCache[String(id)] || [];
+    loading.textContent = `${arr.length.toLocaleString()} stored links`;
+    list.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    for (const [to, la, lo] of arr) {
+      const row = document.createElement('div');
+      row.className = 'linkrow';
+      row.innerHTML = `<div class="to">${escapeHtml(to)}</div><div class="co">${Number(la).toFixed(6)}, ${Number(lo).toFixed(6)}</div>`;
+      row.onclick = () => {
+        map.flyTo([la, lo], 14, { duration: 0.7 });
+        const hl = L.circleMarker([la, lo], { radius: 12, color: '#00ffaa', weight: 2, fill: false }).addTo(map);
+        setTimeout(() => map.removeLayer(hl), 2500);
+      };
+      frag.appendChild(row);
+    }
+    list.appendChild(frag);
+  } catch (e) {
+    loading.textContent = 'Could not load links: ' + e.message;
+  }
+}
+function updateLegend() {
+  const el = $('legend');
+  if (colorMode === 'share') {
+    el.innerHTML = `<div class="lt">Color: sharing_count (log)</div>
+      <div class="row"><span><span class="sw" style="background:${shareColor(1)}"></span>1–10</span><span><span class="sw" style="background:${shareColor(25)}"></span>11–25</span></div>
+      <div class="row"><span><span class="sw" style="background:${shareColor(50)}"></span>26–50</span><span><span class="sw" style="background:${shareColor(100)}"></span>51–100</span></div>
+      <div class="row"><span><span class="sw" style="background:${shareColor(500)}"></span>100+</span><span style="color:var(--dim)">${filtered.length.toLocaleString()} shown</span></div>`;
+  } else if (colorMode === 'type') {
+    const types = ['falcon','picard','wing','raven','condor','falconFlex','falconHighway','avicore'];
+    el.innerHTML = `<div class="lt">Color: device type</div>` + types.map(t => `<div class="row"><span><span class="sw" style="background:${typeColor(t)}"></span>${t}</span></div>`).join('');
+  } else {
+    el.innerHTML = `<div class="lt">Color: organization</div><div class="row"><span>hashed hue per source org</span></div><div class="row"><span style="color:var(--dim)">${filtered.length.toLocaleString()} shown</span></div>`;
+  }
+}
+
+// org filter options
+const orgs = [...new Set(NODES.map(n => n.org))].sort((a, b) => a.localeCompare(b));
+for (const o of orgs) { const opt = document.createElement('option'); opt.value = o; opt.textContent = o; $('orgFilter').appendChild(opt); }
+
+// events
+$('search').addEventListener('input', () => { clearTimeout(window._t); window._t = setTimeout(applyFilter, 120); });
+$('orgFilter').addEventListener('change', applyFilter);
+$('sortMode').addEventListener('change', applyFilter);
+$('colorMode').addEventListener('change', () => { colorMode = $('colorMode').value; rebuildMarkers(); updateLegend(); });
+$('dClose').onclick = () => { $('detail').classList.remove('open'); selectedId = null; history.replaceState(null, '', location.pathname); };
+document.querySelectorAll('.d-tab').forEach(btn => btn.onclick = () => {
+  activeTab = btn.dataset.tab;
+  document.querySelectorAll('.d-tab').forEach(b => b.classList.toggle('active', b === btn));
+  const n = NODES.find(x => x.id === selectedId); if (n) renderDetail(n);
+});
+$('mobilebtn').onclick = () => $('sidebar').classList.toggle('open');
+
+applyFilter();
+if (location.hash.startsWith('#node=')) {
+  const id = Number(location.hash.slice(6));
+  if (id) setTimeout(() => selectNode(id), 500);
+}
+</script>
+</body>
+</html>
