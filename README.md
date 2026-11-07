@@ -13,6 +13,7 @@ The app is organized as five tabs, with the internal topology view as the landin
 - **Internal+Network** — end-to-end flow visualization: camera fleet, edge, API gateway, core, data, GovCloud
 - **Globe** — 106,308 public Flock camera locations as points on a 3D globe, with a density (hexbin) heat view toggle
 - **Nodes** — 4,253 camera-node records with an interactive 2D map, organization/search filters, device details, agency activity stats, and per-node sharing links
+- **wingGateway** — 45,165 Wing-family records (wing, wingUbicquia, wingGateway, wingApi) on a global interactive map with status/type/region filters and per-device detail
 
 ## Data
 
@@ -26,6 +27,7 @@ The app is organized as five tabs, with the internal topology view as the landin
 
 - 106,308 public Flock camera locations as points on a 3D globe
 - 4,253-node interactive 2D map with search, org filter, device/activity/sharing detail, and per-node link register
+- 45,165-record Wing-family global map with status/type/region filters and full per-record detail
 - Density (hexbin) heat view toggle
 - Infrastructure topology graph with 87-subdomain inventory
 - End-to-end camera-to-cloud flow visualization
